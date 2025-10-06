@@ -1,0 +1,30 @@
+"""
+簡単な Python サンプル
+ファイル名: test.txt (Python スクリプトとして利用可能)
+
+使い方:
+ 1) このファイルを `test.py` にリネームするか、python で直接実行します。
+	例: python test.txt
+2) 出力: いくつかの print 文が表示されます。
+"""
+
+def greet(name: str) -> str:
+	"""指定した名前で挨拶文を作る"""
+	return f"こんにちは、{name}さん！"
+
+
+def main() -> None:
+	# 基本のプリント
+	print("Python サンプルを実行しています...")
+
+	# 変数を使ったプリント
+	message = greet("世界")
+	print(message)
+
+	# ループで複数行プリント
+	for i in range(1, 4):
+		print(f"カウント: {i}")
+
+
+if __name__ == "__main__":
+	main()
