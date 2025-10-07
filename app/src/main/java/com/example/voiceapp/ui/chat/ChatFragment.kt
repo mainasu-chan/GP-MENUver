@@ -63,6 +63,9 @@ class ChatFragment : Fragment() {
     // 追加: 音声認識関連
     private var speechRecognizer: SpeechRecognizer? = null
     private var isListening: Boolean = false
+    
+    // アプリ起動時の読み上げを防ぐフラグ
+    private var isFirstLoad: Boolean = true
 
     private var lastPersonality: String? = null
     private var selectedImage: ImageAttachment? = null
@@ -130,6 +133,8 @@ class ChatFragment : Fragment() {
                     clearSelectedImage()
                     Toast.makeText(requireContext(), "性格設定を反映しました。新しい会話を開始します。", Toast.LENGTH_SHORT).show()
                 }
+                // メッセージ送信時は初回ロードフラグを解除
+                isFirstLoad = false
                 val systemPrompt = buildSystemPrompt()
                 chatViewModel.sendMessage(message.takeIf { it.isNotEmpty() }, selectedImage, systemPrompt)
                 lastPersonality = currentPersonality
@@ -343,10 +348,15 @@ class ChatFragment : Fragment() {
             binding.btnSend.isEnabled = !isLoading
             binding.btnAttach.isEnabled = !isLoading
             
-            // ストリーミング完了時に読み上げをトリガー
-            if (!isLoading) {
+            // ストリーミング完了時に読み上げをトリガー（初回ロード時は除く）
+            if (!isLoading && !isFirstLoad) {
                 val messages = chatViewModel.messages.value ?: emptyList()
                 handleAssistantSpeechComplete(messages)
+            }
+            
+            // 初回ロードが完了したらフラグを解除
+            if (!isLoading && isFirstLoad) {
+                isFirstLoad = false
             }
         }
 
@@ -649,27 +659,27 @@ class ChatFragment : Fragment() {
         if (!SettingsFragment.isTTSEnabled(requireContext())) return
         
         val assistantMessages = messages.filter { !it.isUser }
-        val activeTimestamps = mutableSetOf<Long>()
+        if (assistantMessages.isEmpty()) return
+        
+        // 最新のアシスタントメッセージのみを取得
+        val latestMessage = assistantMessages.lastOrNull() ?: return
+        val timestamp = latestMessage.timestamp
+        val content = latestMessage.content.trim()
+        
+        // 空のメッセージはスキップ
+        if (content.isBlank()) return
 
-        assistantMessages.forEach { message ->
-            val timestamp = message.timestamp
-            activeTimestamps.add(timestamp)
-            val content = message.content.trim()
-            
-            // 空のメッセージはスキップ
-            if (content.isBlank()) return@forEach
-
-            val lastSpoken = spokenAssistantMessages[timestamp]
-            
-            // まだ読み上げていない、または内容が変わった場合のみ読み上げ
-            if (lastSpoken != content) {
-                spokenAssistantMessages[timestamp] = content
-                Log.d(TAG, "音声読み上げ開始（ストリーミング完了時）: timestamp=$timestamp, length=${content.length}")
-                speakOut(content)
-            }
+        val lastSpoken = spokenAssistantMessages[timestamp]
+        
+        // まだ読み上げていない、または内容が変わった場合のみ読み上げ
+        if (lastSpoken != content) {
+            spokenAssistantMessages[timestamp] = content
+            Log.d(TAG, "音声読み上げ開始（ストリーミング完了時）: timestamp=$timestamp, length=${content.length}")
+            speakOut(content)
         }
-
-        // 古いメッセージの記録を削除
+        
+        // 古いメッセージの記録を削除（最新の5件のみ保持）
+        val activeTimestamps = assistantMessages.takeLast(5).map { it.timestamp }.toSet()
         spokenAssistantMessages.keys.retainAll(activeTimestamps)
     }
 
