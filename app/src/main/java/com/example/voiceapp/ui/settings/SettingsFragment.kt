@@ -8,6 +8,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import com.example.voiceapp.databinding.FragmentSettingsBinding
 import androidx.activity.result.contract.ActivityResultContracts
@@ -36,6 +37,7 @@ class SettingsFragment : Fragment() {
         private const val KEY_AGENT_NAME = "agent_name"
         private const val KEY_USER_ICON_URI = "user_icon_uri"
         private const val KEY_PERSONALITY = "personality"
+        private const val KEY_FIRST_LAUNCH = "is_first_launch"
 
         // デフォルト値
         const val DEFAULT_USER_NAME = "ユーザー"
@@ -117,6 +119,37 @@ class SettingsFragment : Fragment() {
 
         loadUserSettings()
         setupClickListeners()
+        
+        // 初回起動チェック
+        checkAndShowFirstLaunchDialog()
+    }
+    
+    private fun checkAndShowFirstLaunchDialog() {
+        val isFirstLaunch = sharedPreferences.getBoolean(KEY_FIRST_LAUNCH, true)
+        
+        if (isFirstLaunch) {
+            // 初回起動フラグをfalseに設定
+            sharedPreferences.edit().putBoolean(KEY_FIRST_LAUNCH, false).apply()
+            
+            // ダイアログを表示
+            showFirstLaunchDialog()
+        }
+    }
+    
+    private fun showFirstLaunchDialog() {
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.first_launch_title)
+            .setMessage(R.string.first_launch_message)
+            .setPositiveButton(R.string.first_launch_positive) { dialog, _ ->
+                // Web検索スイッチにフォーカスするなどの処理
+                binding.switchWebSearch.requestFocus()
+                dialog.dismiss()
+            }
+            .setNegativeButton(R.string.first_launch_negative) { dialog, _ ->
+                dialog.dismiss()
+            }
+            .setCancelable(true)
+            .show()
     }
 
     //    private fun setupUI() {
