@@ -1,5 +1,7 @@
 package com.example.voiceapp
 
+import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.view.MotionEvent
 import android.view.View
@@ -11,6 +13,7 @@ import androidx.drawerlayout.widget.DrawerLayout
 import androidx.appcompat.app.AppCompatActivity
 import com.example.voiceapp.databinding.ActivityMainBinding
 import com.example.voiceapp.ui.settings.SettingsFragment
+import com.example.voiceapp.ui.tutorial.TutorialActivity
 import android.widget.LinearLayout
 import android.widget.ImageView
 import androidx.activity.enableEdgeToEdge
@@ -30,6 +33,17 @@ class MainActivity : AppCompatActivity(), com.example.voiceapp.ui.settings.Setti
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // 初回起動チェック - チュートリアル未完了ならTutorialActivityを起動
+        val prefs = getSharedPreferences("user_settings", Context.MODE_PRIVATE)
+        val tutorialCompleted = prefs.getBoolean("tutorial_completed", false)
+        
+        if (!tutorialCompleted) {
+            val intent = Intent(this, TutorialActivity::class.java)
+            startActivity(intent)
+            finish()
+            return
+        }
 
         enableEdgeToEdge()
 

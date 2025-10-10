@@ -66,6 +66,9 @@ class ChatFragment : Fragment() {
     
     // アプリ起動時の読み上げを防ぐフラグ
     private var isFirstLoad: Boolean = true
+    
+    // 一日の最初の会話かどうかを管理
+    private var isFirstConversationOfDay: Boolean = false
 
     private var lastPersonality: String? = null
     private var selectedImage: ImageAttachment? = null
@@ -111,6 +114,8 @@ class ChatFragment : Fragment() {
         lastPersonality = com.example.voiceapp.ui.settings.SettingsFragment.getPersonality(requireContext())
         // 位置情報の初回取得を開始
         getCurrentLocationInfo()
+        // 一日の最初の会話かチェック
+        checkFirstConversationOfDay()
     }
 
     private fun setupRecyclerView() {
@@ -135,12 +140,32 @@ class ChatFragment : Fragment() {
                 }
                 // メッセージ送信時は初回ロードフラグを解除
                 isFirstLoad = false
-                val systemPrompt = buildSystemPrompt()
-                chatViewModel.sendMessage(message.takeIf { it.isNotEmpty() }, selectedImage, systemPrompt)
-                lastPersonality = currentPersonality
-                binding.etMessage.setText("")
-                clearSelectedImage()
-                hideKeyboard()
+                
+                // 一日の最初の会話の場合、AIから話しかけてもらう
+                if (isFirstConversationOfDay && message.isNotEmpty()) {
+                    // まず通常のメッセージを送信
+                    val systemPrompt = buildSystemPrompt()
+                    chatViewModel.sendMessage(message.takeIf { it.isNotEmpty() }, selectedImage, systemPrompt)
+                    lastPersonality = currentPersonality
+                    binding.etMessage.setText("")
+                    clearSelectedImage()
+                    hideKeyboard()
+                    
+                    // その後、日付情報を含むシステムメッセージでAIから挨拶してもらう
+                    val dailyGreeting = generateDailyGreetingPrompt()
+                    chatViewModel.sendSystemMessageOnly(dailyGreeting)
+                    
+                    updateConversationDate()
+                    isFirstConversationOfDay = false
+                } else {
+                    // 通常のメッセージ送信
+                    val systemPrompt = buildSystemPrompt()
+                    chatViewModel.sendMessage(message.takeIf { it.isNotEmpty() }, selectedImage, systemPrompt)
+                    lastPersonality = currentPersonality
+                    binding.etMessage.setText("")
+                    clearSelectedImage()
+                    hideKeyboard()
+                }
             } else {
                 Toast.makeText(requireContext(), "メッセージまたは画像を入力してください", Toast.LENGTH_SHORT).show()
             }
@@ -435,6 +460,8 @@ class ChatFragment : Fragment() {
         
         // 絵文字読み上げ設定を取得
         val isEmojiReadingEnabled = prefs.getBoolean("emoji_reading_enabled", false)
+        // 音声速度設定を取得（0.5〜2.0、デフォルト1.0）
+        val speechRate = prefs.getFloat("speech_rate", 1.0f).coerceIn(0.25f, 4.0f)
         
         val processedText = if (isEmojiReadingEnabled) {
             convertEmojisToText(text)
@@ -469,7 +496,7 @@ class ChatFragment : Fragment() {
                 val result = client.textToSpeech(
                     text = processedText,
                     voice = "alloy",
-                    speed = 1.0
+                    speed = speechRate.toDouble()
                 )
                 
                 result.fold(
@@ -738,6 +765,69 @@ class ChatFragment : Fragment() {
         
         // 現在のキャッシュ値を返す（初回は「取得中...」、以降は前回の値）
         return cachedLocationInfo
+    }
+    
+    /**
+     * 一日の最初の会話かどうかをチェック
+     */
+    private fun checkFirstConversationOfDay() {
+        val prefs = requireContext().getSharedPreferences("chat_settings", Context.MODE_PRIVATE)
+        val lastConversationDate = prefs.getString("last_conversation_date", "")
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        
+        isFirstConversationOfDay = lastConversationDate != today
+        
+        if (isFirstConversationOfDay) {
+            Log.d(TAG, "本日初めての会話です: $today")
+        }
+    }
+    
+    /**
+     * 会話日付を更新
+     */
+    private fun updateConversationDate() {
+        val prefs = requireContext().getSharedPreferences("chat_settings", Context.MODE_PRIVATE)
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        prefs.edit().putString("last_conversation_date", today).apply()
+    }
+    
+    /**
+     * 一日の最初の挨拶メッセージを生成
+     * AIから自然に話しかけるためのシステムプロンプト
+     */
+    private fun generateDailyGreetingPrompt(): String {
+        val calendar = java.util.Calendar.getInstance()
+        val month = calendar.get(java.util.Calendar.MONTH) + 1
+        val day = calendar.get(java.util.Calendar.DAY_OF_MONTH)
+        val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
+        val dayOfWeek = calendar.getDisplayName(
+            java.util.Calendar.DAY_OF_WEEK,
+            java.util.Calendar.LONG,
+            Locale.JAPANESE
+        )
+        
+        val timeOfDay = when (hour) {
+            in 5..11 -> "朝"
+            in 12..17 -> "昼"
+            else -> "夜"
+        }
+        
+        // 簡易的な天気情報（実際のAPI連携は後で追加可能）
+        val weather = "晴れ" // TODO: 実際の天気APIと連携
+        
+        return """
+            現在の状況:
+            - 日付: ${month}月${day}日${dayOfWeek}
+            - 時間帯: ${timeOfDay}
+            - 天気: ${weather}
+            
+            ユーザーに対して、今日が新しい一日であることを踏まえて、自然な挨拶をしてください。
+            時間帯に応じた挨拶（おはようございます、こんにちは、こんばんは）を含めてください。
+            日付を伝え、もし記念日や特別な日があれば言及してください。
+            天気についても触れてください。
+            
+            短く、明るく、親しみやすい口調で話しかけてください。
+        """.trimIndent()
     }
 
     override fun onDestroyView() {

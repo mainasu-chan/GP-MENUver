@@ -1,16 +1,24 @@
 package com.example.voiceapp.ui.settings
 
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
+import android.media.AudioAttributes
+import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
+import com.example.voiceapp.BuildConfig
+import com.example.voiceapp.api.OpenAIClient
 import com.example.voiceapp.databinding.FragmentSettingsBinding
+import com.example.voiceapp.ui.tutorial.TutorialActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -20,6 +28,7 @@ import android.graphics.Path
 import android.graphics.RectF
 import androidx.navigation.fragment.findNavController
 import com.example.voiceapp.R
+import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
@@ -28,6 +37,8 @@ class SettingsFragment : Fragment() {
 
     private var _binding: FragmentSettingsBinding? = null
     private val binding get() = _binding!!
+    
+    private var mediaPlayer: MediaPlayer? = null
 
     private lateinit var sharedPreferences: SharedPreferences
 
@@ -78,6 +89,12 @@ class SettingsFragment : Fragment() {
         fun isWebSearchEnabled(context: Context): Boolean {
             val voiceappPrefs = context.getSharedPreferences("voiceapp_settings", Context.MODE_PRIVATE)
             return voiceappPrefs.getBoolean("web_search_enabled", false)
+        }
+        
+        fun getSpeechRate(context: Context): Float {
+            val voiceappPrefs = context.getSharedPreferences("voiceapp_settings", Context.MODE_PRIVATE)
+            // 0.5〜2.0の範囲、デフォルトは1.0（標準速度）
+            return voiceappPrefs.getFloat("speech_rate", 1.0f)
         }
 
         fun resetToDefaults(context: Context) {
@@ -191,9 +208,16 @@ class SettingsFragment : Fragment() {
         val isTtsEnabled = voiceappPrefs.getBoolean("tts_enabled", true)
         val isEmojiReadingEnabled = voiceappPrefs.getBoolean("emoji_reading_enabled", false)
         val isWebSearchEnabled = voiceappPrefs.getBoolean("web_search_enabled", false)
+        val speechRate = voiceappPrefs.getFloat("speech_rate", 1.0f)
+        
         binding.switchTtsEnabled.isChecked = isTtsEnabled
         binding.switchEmojiReading.isChecked = isEmojiReadingEnabled
         binding.switchWebSearch.isChecked = isWebSearchEnabled
+        
+        // 音声速度のSeekBarを設定（0.5〜2.0を0〜100に変換）
+        val seekBarProgress = ((speechRate - 0.5f) / 1.5f * 100).toInt()
+        binding.seekBarSpeechRate.progress = seekBarProgress
+        updateSpeechRateLabel(speechRate)
     }
 
     private fun setupClickListeners() {
@@ -206,6 +230,11 @@ class SettingsFragment : Fragment() {
         binding.btnOpenDebug.setOnClickListener {
             findNavController().navigate(R.id.nav_debug)
         }
+        
+        binding.btnShowTutorial.setOnClickListener {
+            showTutorial()
+        }
+        
         // 性格: 選択変更で即時保存
         binding.rgPersonality.setOnCheckedChangeListener { _, checkedId ->
             val selectedPersonality = when (checkedId) {
@@ -253,6 +282,153 @@ class SettingsFragment : Fragment() {
             
             Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
         }
+        
+        // 音声速度のSeekBar変更リスナー
+        binding.seekBarSpeechRate.setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: android.widget.SeekBar?, progress: Int, fromUser: Boolean) {
+                // 0〜100を0.5〜2.0に変換
+                val speechRate = 0.5f + (progress / 100f * 1.5f)
+                updateSpeechRateLabel(speechRate)
+                
+                if (fromUser) {
+                    val voiceappPrefs = requireContext().getSharedPreferences("voiceapp_settings", Context.MODE_PRIVATE)
+                    voiceappPrefs.edit().putFloat("speech_rate", speechRate).apply()
+                }
+            }
+            
+            override fun onStartTrackingTouch(seekBar: android.widget.SeekBar?) {}
+            
+            override fun onStopTrackingTouch(seekBar: android.widget.SeekBar?) {
+                val progress = seekBar?.progress ?: 50
+                val speechRate = 0.5f + (progress / 100f * 1.5f)
+                Toast.makeText(requireContext(), "音声速度を変更しました（${String.format("%.1f", speechRate)}x）", Toast.LENGTH_SHORT).show()
+            }
+        })
+        
+        // テスト音声再生ボタン
+        binding.btnTestSpeech.setOnClickListener {
+            testSpeechPlayback()
+        }
+    }
+    
+    private fun updateSpeechRateLabel(speechRate: Float) {
+        val label = when {
+            speechRate < 0.8f -> getString(R.string.settings_speech_rate_slow)
+            speechRate > 1.2f -> getString(R.string.settings_speech_rate_fast)
+            else -> getString(R.string.settings_speech_rate_normal)
+        }
+        binding.tvSpeechRateValue.text = "$label（${String.format("%.1f", speechRate)}x）"
+    }
+    
+    private fun showTutorial() {
+        val intent = Intent(requireContext(), TutorialActivity::class.java)
+        startActivity(intent)
+    }
+    
+    private fun testSpeechPlayback() {
+        val voiceappPrefs = requireContext().getSharedPreferences("voiceapp_settings", Context.MODE_PRIVATE)
+        val isTtsEnabled = voiceappPrefs.getBoolean("tts_enabled", true)
+        
+        if (!isTtsEnabled) {
+            Toast.makeText(requireContext(), "音声読み上げがOFFになっています", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        val speechRate = voiceappPrefs.getFloat("speech_rate", 1.0f)
+        val testText = getString(R.string.settings_test_speech_text)
+        
+        // ボタンを無効化
+        binding.btnTestSpeech.isEnabled = false
+        binding.btnTestSpeech.text = "再生中..."
+        
+        lifecycleScope.launch {
+            try {
+                val customApiKey = voiceappPrefs.getString("custom_api_key", "")?.trim()
+                val apiKey = if (!customApiKey.isNullOrEmpty()) {
+                    customApiKey
+                } else {
+                    BuildConfig.OPENAI_API_KEY
+                }
+                
+                if (apiKey.isEmpty() || apiKey == "your_openai_api_key_here") {
+                    Toast.makeText(requireContext(), "APIキーが設定されていません", Toast.LENGTH_SHORT).show()
+                    binding.btnTestSpeech.isEnabled = true
+                    binding.btnTestSpeech.text = getString(R.string.settings_test_speech)
+                    return@launch
+                }
+                
+                val client = OpenAIClient(apiKey, "https://api.openai.com/v1/")
+                val result = client.textToSpeech(
+                    text = testText,
+                    voice = "alloy",
+                    speed = speechRate.toDouble()
+                )
+                
+                result.fold(
+                    onSuccess = { audioData ->
+                        playAudio(audioData)
+                    },
+                    onFailure = { error ->
+                        Toast.makeText(requireContext(), "音声生成エラー: ${error.message}", Toast.LENGTH_SHORT).show()
+                        Log.e("SettingsFragment", "TTS error", error)
+                        binding.btnTestSpeech.isEnabled = true
+                        binding.btnTestSpeech.text = getString(R.string.settings_test_speech)
+                    }
+                )
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "エラー: ${e.message}", Toast.LENGTH_SHORT).show()
+                Log.e("SettingsFragment", "Test speech error", e)
+                binding.btnTestSpeech.isEnabled = true
+                binding.btnTestSpeech.text = getString(R.string.settings_test_speech)
+            }
+        }
+    }
+    
+    private fun playAudio(audioData: ByteArray) {
+        try {
+            // 既存のMediaPlayerを解放
+            mediaPlayer?.release()
+            
+            // 一時ファイルに音声データを保存
+            val tempFile = File.createTempFile("tts_test", ".mp3", requireContext().cacheDir)
+            tempFile.writeBytes(audioData)
+            
+            mediaPlayer = MediaPlayer().apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .setUsage(AudioAttributes.USAGE_ASSISTANT)
+                        .build()
+                )
+                setDataSource(tempFile.absolutePath)
+                prepare()
+                
+                setOnCompletionListener {
+                    binding.btnTestSpeech.isEnabled = true
+                    binding.btnTestSpeech.text = getString(R.string.settings_test_speech)
+                    tempFile.delete()
+                    it.release()
+                }
+                
+                setOnErrorListener { mp, what, extra ->
+                    Toast.makeText(requireContext(), "再生エラー", Toast.LENGTH_SHORT).show()
+                    binding.btnTestSpeech.isEnabled = true
+                    binding.btnTestSpeech.text = getString(R.string.settings_test_speech)
+                    tempFile.delete()
+                    mp.release()
+                    true
+                }
+                
+                start()
+            }
+            
+            Toast.makeText(requireContext(), "テスト音声を再生中", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(requireContext(), "再生エラー: ${e.message}", Toast.LENGTH_SHORT).show()
+            Log.e("SettingsFragment", "Audio playback error", e)
+            binding.btnTestSpeech.isEnabled = true
+            binding.btnTestSpeech.text = getString(R.string.settings_test_speech)
+        }
     }
 
     private fun saveUserSettings() {
@@ -292,6 +468,9 @@ class SettingsFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        // MediaPlayerを解放
+        mediaPlayer?.release()
+        mediaPlayer = null
         _binding = null
     }
 

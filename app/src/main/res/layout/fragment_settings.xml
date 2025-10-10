@@ -283,7 +283,76 @@
                     android:textSize="12sp"
                     android:fontFamily="sans-serif"
                     android:textColor="@color/ios_secondary_label"
-                    android:layout_marginTop="8dp" />
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="16dp" />
+
+                <!-- 音声読み上げ速度設定 -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/settings_speech_rate"
+                    android:textSize="16sp"
+                    android:fontFamily="sans-serif"
+                    android:textColor="@color/ios_label"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="8dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/settings_speech_rate_slow"
+                        android:textSize="14sp"
+                        android:fontFamily="sans-serif"
+                        android:textColor="@color/ios_secondary_label"
+                        android:layout_marginEnd="8dp" />
+
+                    <SeekBar
+                        android:id="@+id/seekBarSpeechRate"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:max="100"
+                        android:progress="50" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/settings_speech_rate_fast"
+                        android:textSize="14sp"
+                        android:fontFamily="sans-serif"
+                        android:textColor="@color/ios_secondary_label"
+                        android:layout_marginStart="8dp" />
+
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tvSpeechRateValue"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/settings_speech_rate_normal"
+                    android:textSize="12sp"
+                    android:fontFamily="sans-serif"
+                    android:textColor="@color/ios_secondary_label"
+                    android:gravity="center"
+                    android:layout_marginBottom="12dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnTestSpeech"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/settings_test_speech"
+                    android:textColor="@color/ios_blue"
+                    app:strokeColor="@color/ios_blue"
+                    app:cornerRadius="16dp"
+                    app:icon="@android:drawable/ic_lock_silent_mode_off"
+                    app:iconTint="@color/ios_blue" />
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
@@ -384,7 +453,20 @@
                     style="@style/Widget.Voiceapp.OutlinedButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/settings_open_debug" />
+                    android:text="@string/settings_open_debug"
+                    android:layout_marginBottom="12dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnShowTutorial"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/settings_show_tutorial"
+                    android:textColor="@color/ios_blue"
+                    app:strokeColor="@color/ios_blue"
+                    app:cornerRadius="16dp"
+                    app:icon="@android:drawable/ic_menu_help"
+                    app:iconTint="@color/ios_blue" />
 
             </LinearLayout>
 

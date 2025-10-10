@@ -163,6 +163,83 @@ class ChatViewModel(
         chatHistoryStorage.clear()
         _error.value = null
     }
+    
+    /**
+     * システムメッセージのみを送信してAIから話しかけてもらう
+     * ユーザーメッセージは表示されない
+     */
+    fun sendSystemMessageOnly(systemPrompt: String) {
+        val client = openAIClient
+        if (client == null) {
+            _error.value = "APIキーが設定されていません"
+            return
+        }
+
+        _isLoading.value = true
+        _error.value = null
+        
+        // Web Search設定を取得
+        val isWebSearchEnabled = com.example.voiceapp.ui.settings.SettingsFragment.isWebSearchEnabled(context)
+        val selectedModel = if (isWebSearchEnabled) "gpt-4o-2024-11-20" else "gpt-4o-mini"
+        
+        Log.d(TAG, "システムメッセージ送信: model=$selectedModel")
+
+        viewModelScope.launch {
+            try {
+                val currentMessages = _messages.value ?: emptyList()
+                
+                // OpenAI APIに送信するメッセージリストを作成
+                val apiMessages = mutableListOf<ChatRequestMessage>()
+                
+                // システムプロンプトを追加
+                apiMessages.add(
+                    ChatRequestMessage(
+                        role = "system",
+                        content = systemPrompt
+                    )
+                )
+                
+                // 既存の会話履歴を追加
+                apiMessages.addAll(currentMessages.map { it.toApiMessage() })
+
+                val placeholderIndex = addAssistantPlaceholder()
+                val builder = StringBuilder()
+
+                Log.d(TAG, "ストリーミング開始（システムメッセージのみ）...")
+                
+                val streamResult = client.streamMessage(
+                    messages = apiMessages,
+                    model = selectedModel
+                ) { delta ->
+                    builder.append(delta)
+                    withContext(Dispatchers.Main) {
+                        updateAssistantMessageContent(placeholderIndex, builder.toString(), persist = false)
+                    }
+                }
+
+                streamResult.fold(
+                    onSuccess = {
+                        Log.d(TAG, "ストリーミング成功: 最終テキスト長=${builder.length}")
+                        withContext(Dispatchers.Main) {
+                            updateAssistantMessageContent(placeholderIndex, builder.toString(), persist = true)
+                        }
+                    },
+                    onFailure = { exception ->
+                        Log.e(TAG, "ストリーミング失敗", exception)
+                        withContext(Dispatchers.Main) {
+                            removeAssistantMessage(placeholderIndex)
+                            _error.value = "エラー: ${exception.message}"
+                        }
+                    }
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "予期しないエラー", e)
+                _error.value = "予期しないエラーが発生しました: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
 
     private fun ChatMessage.toApiMessage(): ChatRequestMessage {
         // 画像がある場合はマルチモーダル形式、なければテキストのみ

@@ -49,4 +49,30 @@
     <string name="first_launch_message">このアプリでは、設定画面でWeb検索を有効にすることができます。\n\nWeb検索を有効にすると、AIがインターネット上の最新情報を検索して回答に活用できるようになります。\n\n設定は後からいつでも変更できます。</string>
     <string name="first_launch_positive">設定を開く</string>
     <string name="first_launch_negative">後で</string>
+    
+    <!-- チュートリアル -->
+    <string name="tutorial_skip">スキップ</string>
+    <string name="tutorial_next">次へ</string>
+    <string name="tutorial_start">始める</string>
+    <string name="tutorial_page1_title">Voiceappへようこそ！</string>
+    <string name="tutorial_page1_description">AIアシスタントとの対話を楽しめるアプリです。音声入力やテキスト入力でAIと会話ができます。</string>
+    <string name="tutorial_page2_title">音声入力</string>
+    <string name="tutorial_page2_description">マイクボタンをタップすると音声で質問できます。音声はテキストに変換され、AIが回答します。</string>
+    <string name="tutorial_page3_title">画像を送信</string>
+    <string name="tutorial_page3_description">画像アイコンから画像を選択すると、AIに画像について質問できます。画像認識機能を活用しましょう。</string>
+    <string name="tutorial_page4_title">Web検索機能</string>
+    <string name="tutorial_page4_description">設定画面でWeb検索を有効にすると、AIが最新のインターネット情報を検索して回答します。</string>
+    <string name="tutorial_page5_title">カスタマイズ</string>
+    <string name="tutorial_page5_description">設定画面でAIの性格、ユーザー名、アイコンなどをカスタマイズできます。あなた好みのアシスタントに！</string>
+    
+    <!-- 音声読み上げ速度設定 -->
+    <string name="settings_speech_rate">音声読み上げ速度</string>
+    <string name="settings_speech_rate_description">音声の読み上げ速度を調整できます</string>
+    <string name="settings_speech_rate_slow">遅い</string>
+    <string name="settings_speech_rate_normal">標準</string>
+    <string name="settings_speech_rate_fast">速い</string>
+    <string name="settings_test_speech">テスト再生</string>
+    <string name="settings_test_speech_text">こんにちは。これは音声読み上げのテストです。速度を確認してください。</string>
+    <string name="settings_show_tutorial">チュートリアルをもう一度見る</string>
+    <string name="settings_show_tutorial_description">アプリの使い方を再確認できます</string>
 </resources>
