@@ -33,6 +33,7 @@ import com.example.voiceapp.api.OpenAIClient
 import com.example.voiceapp.BuildConfig
 import com.example.voiceapp.ui.settings.SettingsFragment
 import io.noties.markwon.Markwon
+import io.noties.markwon.linkify.LinkifyPlugin
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -102,7 +103,9 @@ class ChatFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        markwon = Markwon.create(requireContext())
+        markwon = Markwon.builder(requireContext())
+            .usePlugin(LinkifyPlugin.create())
+            .build()
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity())
         setupRecyclerView()
         setupClickListeners()
@@ -140,6 +143,13 @@ class ChatFragment : Fragment() {
                 isFirstConversationOfDay = true
                 binding.etMessage.setText("")
                 Toast.makeText(requireContext(), "一日の最初の会話にリセットしました", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            
+            // /sound コマンドの処理
+            if (message == "/sound") {
+                sendFreeMusicLinks()
+                binding.etMessage.setText("")
                 return@setOnClickListener
             }
             
@@ -811,6 +821,30 @@ class ChatFragment : Fragment() {
             updateConversationDate()
             isFirstConversationOfDay = false
         }
+    }
+    
+    /**
+     * フリー音源の音楽YouTubeリンクを送信
+     */
+    private fun sendFreeMusicLinks() {
+        val freeMusicLinks = listOf(
+            "🎵 LoFi Hip Hop - Chill Beats\nhttps://www.youtube.com/watch?v=jfKfPfyJRdk",
+            "🎵 Peaceful Piano Music\nhttps://www.youtube.com/watch?v=lTRiuFIWV54",
+            "🎵 Jazz Music - Relaxing Cafe Music\nhttps://www.youtube.com/watch?v=Dx5qFachd3A",
+            "🎵 Study Music - Focus & Concentration\nhttps://www.youtube.com/watch?v=5qap5aO4i9A",
+            "🎵 Nature Sounds - Forest Ambience\nhttps://www.youtube.com/watch?v=xNN7iTA57jM"
+        )
+        
+        val randomLink = freeMusicLinks.random()
+        
+        // ユーザーのコマンドメッセージを追加
+        chatViewModel.addDirectMessage("/sound", true)
+        
+        // GreenPetからの応答メッセージを追加
+        val responseMessage = "おすすめのフリー音源をご紹介します！\n\n$randomLink\n\nリラックスしてお楽しみください🎧"
+        chatViewModel.addDirectMessage(responseMessage, false)
+        
+        Toast.makeText(requireContext(), "フリー音源を送信しました", Toast.LENGTH_SHORT).show()
     }
     
     /**

@@ -165,6 +165,20 @@ class ChatViewModel(
     }
     
     /**
+     * メッセージを直接追加（コマンド用）
+     */
+    fun addDirectMessage(content: String, isUser: Boolean) {
+        val currentMessages = _messages.value?.toMutableList() ?: mutableListOf()
+        val newMessage = ChatMessage(
+            content = content,
+            isUser = isUser,
+            timestamp = System.currentTimeMillis()
+        )
+        currentMessages.add(newMessage)
+        updateMessages(currentMessages)
+    }
+    
+    /**
      * システムメッセージのみを送信してAIから話しかけてもらう
      * ユーザーメッセージは表示されない
      */

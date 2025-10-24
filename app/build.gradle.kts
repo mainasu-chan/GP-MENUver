@@ -74,6 +74,7 @@ dependencies {
 
     // Markdown rendering
     implementation("io.noties.markwon:core:4.6.2")
+    implementation("io.noties.markwon:linkify:4.6.2")
 
     // HTTP client for API communication
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
