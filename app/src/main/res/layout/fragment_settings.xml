@@ -72,7 +72,7 @@
                 <com.google.android.material.textfield.TextInputLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="AIアシスタントの名前"
+                    android:hint="GreenPet"
                     android:id="@+id/AgentName"
                     app:boxBackgroundColor="@color/ios_bg_secondary"
                     app:boxCornerRadiusTopStart="16dp"

@@ -52,7 +52,7 @@ class SettingsFragment : Fragment() {
 
         // デフォルト値
         const val DEFAULT_USER_NAME = "ユーザー"
-        const val DEFAULT_AGENT_NAME = "AIアシスタント"
+        const val DEFAULT_AGENT_NAME = "GreenPet"
         const val DEFAULT_PERSONALITY = "kind" // playful | kind | objective
 
         fun getUserName(context: Context): String {

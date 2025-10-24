@@ -238,7 +238,7 @@
                         android:id="@+id/tvAgentName"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="AIアシスタント"
+                        android:text="GreenPet"
                         android:textSize="14sp"
                         android:textStyle="bold" />
 
