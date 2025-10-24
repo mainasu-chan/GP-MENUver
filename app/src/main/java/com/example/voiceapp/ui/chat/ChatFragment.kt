@@ -116,6 +116,8 @@ class ChatFragment : Fragment() {
         getCurrentLocationInfo()
         // 一日の最初の会話かチェック
         checkFirstConversationOfDay()
+        // 一日の最初の会話なら自動的にAIから挨拶
+        sendDailyGreetingIfNeeded()
     }
 
     private fun setupRecyclerView() {
@@ -131,6 +133,16 @@ class ChatFragment : Fragment() {
     private fun setupClickListeners() {
         binding.btnSend.setOnClickListener {
             val message = binding.etMessage.text.toString().trim()
+            
+            // /startday コマンドの処理
+            if (message == "/startday") {
+                resetConversationDate()
+                isFirstConversationOfDay = true
+                binding.etMessage.setText("")
+                Toast.makeText(requireContext(), "一日の最初の会話にリセットしました", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            
             if (message.isNotEmpty() || selectedImage != null) {
                 val currentPersonality = com.example.voiceapp.ui.settings.SettingsFragment.getPersonality(requireContext())
                 if (lastPersonality != null && lastPersonality != currentPersonality && (chatViewModel.messages.value?.isNotEmpty() == true)) {
@@ -141,31 +153,19 @@ class ChatFragment : Fragment() {
                 // メッセージ送信時は初回ロードフラグを解除
                 isFirstLoad = false
                 
-                // 一日の最初の会話の場合、AIから話しかけてもらう
+                // 一日の最初の会話の場合、日付を更新
                 if (isFirstConversationOfDay && message.isNotEmpty()) {
-                    // まず通常のメッセージを送信
-                    val systemPrompt = buildSystemPrompt()
-                    chatViewModel.sendMessage(message.takeIf { it.isNotEmpty() }, selectedImage, systemPrompt)
-                    lastPersonality = currentPersonality
-                    binding.etMessage.setText("")
-                    clearSelectedImage()
-                    hideKeyboard()
-                    
-                    // その後、日付情報を含むシステムメッセージでAIから挨拶してもらう
-                    val dailyGreeting = generateDailyGreetingPrompt()
-                    chatViewModel.sendSystemMessageOnly(dailyGreeting)
-                    
                     updateConversationDate()
                     isFirstConversationOfDay = false
-                } else {
-                    // 通常のメッセージ送信
-                    val systemPrompt = buildSystemPrompt()
-                    chatViewModel.sendMessage(message.takeIf { it.isNotEmpty() }, selectedImage, systemPrompt)
-                    lastPersonality = currentPersonality
-                    binding.etMessage.setText("")
-                    clearSelectedImage()
-                    hideKeyboard()
                 }
+                
+                // 通常のメッセージ送信
+                val systemPrompt = buildSystemPrompt()
+                chatViewModel.sendMessage(message.takeIf { it.isNotEmpty() }, selectedImage, systemPrompt)
+                lastPersonality = currentPersonality
+                binding.etMessage.setText("")
+                clearSelectedImage()
+                hideKeyboard()
             } else {
                 Toast.makeText(requireContext(), "メッセージまたは画像を入力してください", Toast.LENGTH_SHORT).show()
             }
@@ -789,6 +789,28 @@ class ChatFragment : Fragment() {
         val prefs = requireContext().getSharedPreferences("chat_settings", Context.MODE_PRIVATE)
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         prefs.edit().putString("last_conversation_date", today).apply()
+    }
+    
+    /**
+     * 会話日付をリセット（/startday コマンド用）
+     */
+    private fun resetConversationDate() {
+        val prefs = requireContext().getSharedPreferences("chat_settings", Context.MODE_PRIVATE)
+        prefs.edit().remove("last_conversation_date").apply()
+        Log.d(TAG, "会話日付をリセットしました")
+    }
+    
+    /**
+     * 一日の最初の会話であれば、AIから挨拶メッセージを送信
+     */
+    private fun sendDailyGreetingIfNeeded() {
+        if (isFirstConversationOfDay) {
+            Log.d(TAG, "一日の最初の会話: AIから挨拶を送信します")
+            val dailyGreeting = generateDailyGreetingPrompt()
+            chatViewModel.sendSystemMessageOnly(dailyGreeting)
+            updateConversationDate()
+            isFirstConversationOfDay = false
+        }
     }
     
     /**
